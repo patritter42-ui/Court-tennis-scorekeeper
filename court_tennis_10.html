@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Patrick's Medieval Time Machine: Court Tennis Scorekeeper</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1a0f; color: #e8e0cc;
+    font-family: Georgia, serif; height: 100vh;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  /* ── Setup ── */
+  #setup {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px; gap: 24px;
+  }
+  .setup-title { text-align: center; }
+  .setup-title .eyebrow { font-size: 11px; letter-spacing: 4px; color: #7ab368; text-transform: uppercase; margin-bottom: 6px; }
+  .setup-title h1 { font-size: 26px; color: #e8e0cc; letter-spacing: 1px; }
+  .progress-dots { display: flex; gap: 10px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #2a3d2a; transition: background 0.2s; }
+  .dot.active { background: #7ab368; }
+  .dot.done   { background: #4a7c3f; }
+  .card {
+    background: #131f13; border: 1px solid #2a3d2a;
+    border-radius: 10px; padding: 32px 36px;
+    max-width: 500px; width: 100%;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .step-label { font-size: 11px; letter-spacing: 3px; color: #7ab368; text-transform: uppercase; }
+  .step-title { font-size: 20px; color: #e8e0cc; font-weight: bold; }
+  .step-desc  { font-size: 14px; color: #9a9080; line-height: 1.6; }
+  .step-desc b { color: #c8d8b8; }
+  .choice-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-choice {
+    background: #1a2e1a; color: #b0c8a0;
+    border: 1px solid #3a5530; border-radius: 4px;
+    padding: 11px 28px; cursor: pointer; font-size: 14px;
+    letter-spacing: 1px; font-family: Georgia, serif; transition: all 0.15s;
+  }
+  .btn-choice.selected, .btn-choice:hover { background: #4a7c3f; color: #e8f8e0; border-color: #7ab368; }
+  .btn-row { display: flex; gap: 12px; }
+  .btn-primary {
+    background: #4a7c3f; color: #e8f8e0;
+    border: none; border-radius: 4px; padding: 10px 26px;
+    cursor: pointer; font-size: 14px; letter-spacing: 1px;
+    font-family: Georgia, serif; transition: background 0.15s;
+  }
+  .btn-primary:disabled { background: #2a3d2a; color: #5a6d5a; cursor: default; }
+  .btn-back {
+    background: #1a2e1a; color: #9a9080;
+    border: 1px solid #2a3d2a; border-radius: 4px;
+    padding: 10px 20px; cursor: pointer; font-size: 14px;
+    letter-spacing: 1px; font-family: Georgia, serif;
+  }
+  .input-field {
+    background: #1a2e1a; border: 1px solid #3a5530;
+    border-radius: 4px; color: #e8e0cc; padding: 9px 14px;
+    font-size: 15px; font-family: Georgia, serif; outline: none; width: 100%;
+  }
+  .input-field:focus { border-color: #7ab368; }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-label { font-size: 13px; color: #9a9080; }
+  .team-hint { font-size: 12px; color: #7ab368; margin-top: 4px; }
+  .team-section { display: flex; flex-direction: column; gap: 8px; }
+  .team-section-label { font-size: 13px; color: #7ab368; }
+  .api-note { font-size: 12px; color: #7a7060; line-height: 1.5; }
+  .api-note a { color: #7ab368; }
+
+  /* ── Confirm Dialog ── */
+  #confirmOverlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #confirmOverlay.show { display: flex; }
+  .confirm-box {
+    background: #131f13; border: 1px solid #4a7c3f;
+    border-radius: 10px; padding: 32px 36px;
+    max-width: 380px; width: 100%;
+    display: flex; flex-direction: column; gap: 18px; text-align: center;
+  }
+  .confirm-box h2 { font-size: 18px; color: #e8e0cc; }
+  .confirm-box p  { font-size: 14px; color: #9a9080; line-height: 1.5; }
+  .confirm-btns   { display: flex; gap: 12px; justify-content: center; }
+  .btn-confirm-yes {
+    background: #8b2020; color: #f8e0e0;
+    border: none; border-radius: 4px; padding: 10px 28px;
+    cursor: pointer; font-size: 14px; font-family: Georgia, serif;
+  }
+  .btn-confirm-no {
+    background: #1a2e1a; color: #b0c8a0;
+    border: 1px solid #3a5530; border-radius: 4px;
+    padding: 10px 28px; cursor: pointer; font-size: 14px; font-family: Georgia, serif;
+  }
+
+  /* ── Tracker ── */
+  #tracker { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  .hdr {
+    background: linear-gradient(135deg, #1a2e1a 0%, #0f1a0f 100%);
+    border-bottom: 2px solid #4a7c3f;
+    padding: 8px 24px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .hdr-center { text-align: center; }
+  .hdr .eyebrow { font-size: 9px; letter-spacing: 4px; color: #7ab368; text-transform: uppercase; }
+  .hdr h1 { font-size: 15px; letter-spacing: 1px; color: #e8e0cc; font-weight: bold; line-height: 1.3; }
+  .hdr .matchdesc { font-size: 10px; color: #5a7050; margin-top: 1px; letter-spacing: 1px; }
+  .btn-end-game {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    background: #4a1a1a; color: #e8a0a0;
+    border: 1px solid #8b3030; border-radius: 4px;
+    padding: 6px 14px; cursor: pointer; font-size: 11px;
+    letter-spacing: 1px; font-family: Georgia, serif;
+    transition: background 0.15s;
+  }
+  .btn-end-game:hover { background: #6a2020; }
+
+  /* Scoreboard */
+  #scoreboard { flex-shrink: 0; background: #0f1a0f; border-bottom: 3px solid #3a5530; }
+  .score-row1, .score-row2 { display: flex; padding: 8px 16px 6px; gap: 12px; align-items: stretch; }
+  .score-row2 { padding-top: 0; padding-bottom: 8px; }
+  .panel { border: 1px solid #2a3d2a; border-radius: 5px; overflow: hidden; flex-shrink: 0; }
+  .panel.stretch { flex: 1; min-width: 0; }
+  .panel-hdr { background: #1a2e1a; padding: 4px 10px; font-size: 9px; letter-spacing: 3px; color: #7ab368; text-transform: uppercase; }
+  .sets-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sets-table th { padding: 3px 8px; color: #9a9080; font-weight: normal; text-align: center; }
+  .sets-table th:first-child { text-align: left; }
+  .sets-table td { padding: 3px 8px; text-align: center; color: #c8c0a8; }
+  .sets-table td:first-child { text-align: left; color: #e8e0cc; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sets-table .total { color: #7ab368; font-weight: bold; font-size: 13px; }
+  .games-inner { display: flex; }
+  .games-cell { text-align: center; padding: 5px 18px; border-right: 1px solid #2a3d2a; }
+  .games-cell:last-child { border-right: none; }
+  .games-name { font-size: 10px; color: #9a9080; margin-bottom: 2px; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+  .games-val  { font-size: 28px; font-weight: bold; color: #e8e0cc; line-height: 1; }
+  .point-inner { padding: 5px 22px; text-align: center; }
+  .point-val { font-size: 26px; font-weight: bold; color: #f0e8c8; letter-spacing: 2px; white-space: nowrap; }
+  .point-val.special { color: #f0a040; }
+  .point-names { font-size: 10px; color: #9a9080; margin-top: 2px; }
+  .ends-inner { padding: 5px 12px; display: flex; flex-direction: column; gap: 5px; }
+  .ends-lbl { font-size: 9px; color: #9a9080; text-transform: uppercase; letter-spacing: 1px; }
+  .ends-srv  { font-size: 13px; color: #f0d060; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+  .ends-rcv  { font-size: 13px; color: #e8e0cc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+  .chases-inner { padding: 5px 12px; min-height: 44px; }
+  .chase-none { color: #5a5040; font-size: 12px; font-style: italic; }
+  .chase-item { background: #1e3020; border: 1px solid #3a5530; border-radius: 3px; padding: 2px 8px; margin-bottom: 3px; font-size: 12px; color: #a8d090; }
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .stats-table th { padding: 3px 8px; color: #9a9080; font-weight: normal; }
+  .stats-table th:first-child { text-align: left; width: 30%; }
+  .stats-table th:not(:first-child) { text-align: center; color: #c8d8b8; width: 35%; }
+  .stats-table td { padding: 3px 8px; border-bottom: 1px solid #1a2a1a; }
+  .stats-table td:first-child { color: #9a9080; }
+  .stats-table td:not(:first-child) { text-align: center; color: #e8e0cc; font-weight: bold; }
+
+  /* Bottom */
+  #bottom { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+  .pane { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .pane.left  { border-right: 2px solid #2a3d2a; }
+  .pane.right { background: #0a0a06; }
+  .pane-hdr { padding: 6px 16px; font-size: 9px; letter-spacing: 3px; text-transform: uppercase; flex-shrink: 0; border-bottom: 1px solid #2a3d2a; }
+  .pane-hdr.green { background: #131f13; color: #7ab368; }
+  .pane-hdr.gold  { background: #13130a; color: #c4a84a; border-bottom-color: #3a3010; }
+  .pane-log { flex: 1; overflow-y: auto; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .log-entry { display: flex; align-items: flex-start; gap: 10px; }
+  .log-tag { font-size: 9px; padding-top: 3px; min-width: 52px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 1px; }
+  .log-tag.input  { color: #7ab368; }
+  .log-tag.marker { color: #9a9080; }
+  .log-tag.error  { color: #c04040; }
+  .log-tag.you    { color: #c4a84a; }
+  .log-tag.expert { color: #807860; }
+  .log-text { font-size: 13px; line-height: 1.55; }
+  .log-text.input  { color: #b0d898; }
+  .log-text.marker { color: #e8e0cc; font-style: italic; }
+  .log-text.error  { color: #e07070; }
+  .log-text.you    { color: #e8d880; }
+  .log-text.expert { color: #ccc8a8; }
+  .log-thinking { color: #7ab368; font-size: 13px; }
+  .log-thinking.qa { color: #c4a84a; }
+  .pane-input-bar { flex-shrink: 0; border-top: 1px solid #2a3d2a; padding: 8px 14px; display: flex; gap: 8px; background: #0a140a; }
+  .pane-input-bar.qa { border-top-color: #3a3010; background: #060606; }
+  .pane-input-bar input { flex: 1; background: #1a2e1a; border: 1px solid #3a5530; border-radius: 4px; color: #e8e0cc; padding: 7px 12px; font-size: 13px; font-family: Georgia, serif; outline: none; }
+  .pane-input-bar.qa input { background: #1a1a0e; border-color: #4a3a18; }
+  .pane-input-bar input:focus { border-color: #7ab368; }
+  .pane-input-bar.qa input:focus { border-color: #c4a84a; }
+  .btn-mark { background: #4a7c3f; color: #e8f8e0; border: none; border-radius: 4px; padding: 7px 18px; cursor: pointer; font-size: 12px; letter-spacing: 1px; font-family: Georgia, serif; flex-shrink: 0; }
+  .btn-mark:disabled { background: #2a3d2a; color: #5a6d5a; cursor: default; }
+  .btn-ask  { background: #6a5418; color: #f8f0c0; border: none; border-radius: 4px; padding: 7px 18px; cursor: pointer; font-size: 12px; letter-spacing: 1px; font-family: Georgia, serif; flex-shrink: 0; }
+  .btn-ask:disabled { background: #252510; color: #5a5030; cursor: default; }
+</style>
+</head>
+<body>
+
+<!-- Confirm End Game Dialog -->
+<div id="confirmOverlay">
+  <div class="confirm-box">
+    <h2>End the Match?</h2>
+    <p>Are you sure you want to end the match and return to the setup screen? All progress will be lost.</p>
+    <div class="confirm-btns">
+      <button class="btn-confirm-no"  id="confirmNo">No, Go Back</button>
+      <button class="btn-confirm-yes" id="confirmYes">Yes, End Match</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETUP WIZARD ── -->
+<div id="setup">
+  <div class="setup-title">
+    <div class="eyebrow">Court Tennis</div>
+    <h1>Match Setup</h1>
+  </div>
+  <div class="progress-dots">
+    <div class="dot active" id="dot0"></div>
+    <div class="dot" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+    <div class="dot" id="dot3"></div>
+    <div class="dot" id="dot4"></div>
+    <div class="dot" id="dot5"></div>
+  </div>
+
+  <!-- Step 0: API Key -->
+  <div class="card" id="step0">
+    <div class="step-label">Step 1 of 6</div>
+    <div class="step-title">Anthropic API Key</div>
+    <div class="step-desc">Enter your API key to power the scoring engine and Q&amp;A expert. It stays in your browser only.</div>
+    <div class="input-group">
+      <label class="input-label" for="apiKeyInput">API Key</label>
+      <input class="input-field" id="apiKeyInput" type="password" placeholder="sk-ant-..." autocomplete="off" />
+    </div>
+    <div class="api-note">Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>. Your key is never sent anywhere except the Anthropic API directly from your browser.</div>
+    <button class="btn-primary" id="step0Next" disabled>Next →</button>
+  </div>
+
+  <!-- Step 1: Format -->
+  <div class="card" id="step1" style="display:none">
+    <div class="step-label">Step 2 of 6</div>
+    <div class="step-title">Singles or Doubles?</div>
+    <div class="choice-row">
+      <button class="btn-choice" data-group="format" data-val="singles">Singles</button>
+      <button class="btn-choice" data-group="format" data-val="doubles">Doubles</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(0)">← Back</button>
+      <button class="btn-primary" id="step1Next" disabled>Next →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Structure -->
+  <div class="card" id="step2" style="display:none">
+    <div class="step-label">Step 3 of 6</div>
+    <div class="step-title">Sets or Games?</div>
+    <div class="step-desc">
+      <b>Sets</b> — games count toward sets (first to 6 games, best of 3 sets).<br>
+      <b>Games</b> — running total of games won only, no sets.
+    </div>
+    <div class="choice-row">
+      <button class="btn-choice" data-group="structure" data-val="sets">Sets</button>
+      <button class="btn-choice" data-group="structure" data-val="games">Games</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(1)">← Back</button>
+      <button class="btn-primary" id="step2Next" disabled>Next →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Scoring -->
+  <div class="card" id="step3" style="display:none">
+    <div class="step-label">Step 4 of 6</div>
+    <div class="step-title">Game Ball or Deuce?</div>
+    <div class="step-desc">
+      <b>Game Ball</b> — first to win 4 points wins the game: 0 → 15 → 30 → 40 → game. At 40-40, whoever wins the next point wins the game. No advantage.<br><br>
+      <b>Deuce</b> — first to 4 points, but if both reach 40 together, a player must then win 2 consecutive points (advantage, then game). Losing the advantage point returns to deuce.
+    </div>
+    <div class="choice-row">
+      <button class="btn-choice" data-group="scoring" data-val="gameball">Game Ball</button>
+      <button class="btn-choice" data-group="scoring" data-val="deuce">Deuce</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(2)">← Back</button>
+      <button class="btn-primary" id="step3Next" disabled>Next →</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Names -->
+  <div class="card" id="step4" style="display:none">
+    <div class="step-label">Step 5 of 6</div>
+    <div class="step-title" id="namesTitle">Player Names</div>
+    <div id="singlesNames">
+      <div class="input-group" style="margin-bottom:12px">
+        <div class="input-label">Player 1 (left on scoreboard)</div>
+        <input class="input-field" id="p1Name" placeholder="e.g. Alice" />
+      </div>
+      <div class="input-group">
+        <div class="input-label">Player 2</div>
+        <input class="input-field" id="p2Name" placeholder="e.g. Bob" />
+      </div>
+    </div>
+    <div id="doublesNames" style="display:none">
+      <div class="team-section" style="margin-bottom:14px">
+        <div class="team-section-label">Team 1 (left on scoreboard)</div>
+        <input class="input-field" id="t1p1" placeholder="Player A name" style="margin-bottom:6px" />
+        <input class="input-field" id="t1p2" placeholder="Player B name" />
+        <div class="team-hint" id="team1hint" style="display:none"></div>
+      </div>
+      <div class="team-section">
+        <div class="team-section-label">Team 2</div>
+        <input class="input-field" id="t2p1" placeholder="Player A name" style="margin-bottom:6px" />
+        <input class="input-field" id="t2p2" placeholder="Player B name" />
+        <div class="team-hint" id="team2hint" style="display:none"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(3)">← Back</button>
+      <button class="btn-primary" id="step4Next" disabled>Next →</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Server -->
+  <div class="card" id="step5" style="display:none">
+    <div class="step-label">Step 6 of 6</div>
+    <div class="step-title">Who Serves First?</div>
+    <div class="step-desc">The serving side starts at the service end and appears on the left of the scoreboard.</div>
+    <div class="choice-row" id="serverChoices"></div>
+    <div class="btn-row">
+      <button class="btn-back" onclick="goStep(4)">← Back</button>
+      <button class="btn-primary" id="step5Next" disabled>Start Match →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TRACKER ── -->
+<div id="tracker">
+  <div class="hdr">
+    <div class="hdr-center">
+      <div class="eyebrow">Court Tennis</div>
+      <h1>Patrick's Medieval Time Machine: Court Tennis Scorekeeper</h1>
+      <div class="matchdesc" id="matchdesc"></div>
+    </div>
+    <button class="btn-end-game" id="endGameBtn">End Match</button>
+  </div>
+
+  <div id="scoreboard">
+    <div class="score-row1">
+      <div class="panel" id="setsPanel" style="display:none; min-width:170px">
+        <div class="panel-hdr">Sets</div>
+        <div style="padding:0"><table class="sets-table" id="setsTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr">Games</div>
+        <div class="games-inner" id="gamesInner"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr">Point Score</div>
+        <div class="point-inner">
+          <div class="point-val" id="pointVal">love – love</div>
+          <div class="point-names" id="pointNames"></div>
+        </div>
+      </div>
+      <div class="panel" style="min-width:155px">
+        <div class="panel-hdr">Ends</div>
+        <div class="ends-inner">
+          <div><div class="ends-lbl">Serving</div><div class="ends-srv" id="endsSrv"></div></div>
+          <div><div class="ends-lbl">Receiving</div><div class="ends-rcv" id="endsRcv"></div></div>
+        </div>
+      </div>
+      <div class="panel" style="min-width:185px">
+        <div class="panel-hdr">Chases</div>
+        <div class="chases-inner" id="chasesInner"><div class="chase-none">None pending</div></div>
+      </div>
+      <div style="flex:1"></div>
+    </div>
+    <div class="score-row2">
+      <div class="panel stretch">
+        <div class="panel-hdr">Statistics</div>
+        <div style="padding:4px 12px 6px"><table class="stats-table" id="statsTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div class="pane left">
+      <div class="pane-hdr green">Match Log</div>
+      <div class="pane-log" id="matchLog"></div>
+      <div class="pane-input-bar">
+        <input type="text" id="scoringInput" placeholder="Describe what happened (e.g. 'Alice wins the point')" />
+        <button class="btn-mark" id="markBtn">Mark</button>
+      </div>
+    </div>
+    <div class="pane right">
+      <div class="pane-hdr gold">Ask a Question</div>
+      <div class="pane-log" id="qaLog"></div>
+      <div class="pane-input-bar qa">
+        <input type="text" id="qaInput" placeholder="Ask anything (e.g. 'Who is serving?' or 'What is a chase?')" />
+        <button class="btn-ask" id="askBtn">Ask</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONSTANTS & STATE
+// ═══════════════════════════════════════════════
+const POINT_LABELS = ["love", "15", "30", "40"];
+let apiKey = "";
+let config = {};
+let state  = {};
+
+// ═══════════════════════════════════════════════
+// SETUP WIZARD
+// ═══════════════════════════════════════════════
+const picks = { format: null, structure: null, scoring: null, server: null };
+
+function goStep(n) {
+  document.querySelectorAll(".card").forEach(c => c.style.display = "none");
+  document.getElementById("step" + n).style.display = "flex";
+  document.querySelectorAll(".dot").forEach((d, i) => {
+    d.className = "dot" + (i === n ? " active" : i < n ? " done" : "");
+  });
+}
+
+const apiKeyInput = document.getElementById("apiKeyInput");
+const step0Next   = document.getElementById("step0Next");
+apiKeyInput.addEventListener("input", () => {
+  step0Next.disabled = !apiKeyInput.value.trim().startsWith("sk-");
+});
+step0Next.onclick = () => { apiKey = apiKeyInput.value.trim(); goStep(1); };
+
+document.querySelectorAll(".btn-choice").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const group = btn.dataset.group;
+    document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    picks[group] = btn.dataset.val;
+    const nextMap = { format:"step1Next", structure:"step2Next", scoring:"step3Next", server:"step5Next" };
+    if (nextMap[group]) document.getElementById(nextMap[group]).disabled = false;
+  });
+});
+
+document.getElementById("step1Next").onclick = () => {
+  const isDoubles = picks.format === "doubles";
+  document.getElementById("singlesNames").style.display = isDoubles ? "none" : "block";
+  document.getElementById("doublesNames").style.display = isDoubles ? "block" : "none";
+  document.getElementById("namesTitle").textContent = isDoubles ? "Team & Player Names" : "Player Names";
+  goStep(2);
+};
+document.getElementById("step2Next").onclick = () => goStep(3);
+document.getElementById("step3Next").onclick = () => goStep(4);
+
+function checkNames() {
+  let ok = false;
+  if (picks.format === "singles") {
+    ok = !!(document.getElementById("p1Name").value.trim() && document.getElementById("p2Name").value.trim());
+  } else {
+    const v = ["t1p1","t1p2","t2p1","t2p2"].map(id => document.getElementById(id).value.trim());
+    ok = v.every(Boolean);
+    if (v[0] && v[1]) { document.getElementById("team1hint").textContent = "Team: " + v[0] + "/" + v[1]; document.getElementById("team1hint").style.display = "block"; }
+    if (v[2] && v[3]) { document.getElementById("team2hint").textContent = "Team: " + v[2] + "/" + v[3]; document.getElementById("team2hint").style.display = "block"; }
+  }
+  document.getElementById("step4Next").disabled = !ok;
+}
+["p1Name","p2Name","t1p1","t1p2","t2p1","t2p2"].forEach(id =>
+  document.getElementById(id).addEventListener("input", checkNames)
+);
+
+document.getElementById("step4Next").onclick = () => {
+  let n1, n2;
+  if (picks.format === "singles") {
+    n1 = document.getElementById("p1Name").value.trim();
+    n2 = document.getElementById("p2Name").value.trim();
+  } else {
+    n1 = document.getElementById("t1p1").value.trim() + "/" + document.getElementById("t1p2").value.trim();
+    n2 = document.getElementById("t2p1").value.trim() + "/" + document.getElementById("t2p2").value.trim();
+  }
+  config.name1 = n1; config.name2 = n2;
+  const container = document.getElementById("serverChoices");
+  container.innerHTML = "";
+  [{ label: n1, val: "p1" }, { label: n2, val: "p2" }].forEach(({ label, val }) => {
+    const b = document.createElement("button");
+    b.className = "btn-choice"; b.dataset.group = "server"; b.dataset.val = val;
+    b.textContent = label; container.appendChild(b);
+    b.addEventListener("click", () => {
+      document.querySelectorAll('[data-group="server"]').forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
+      picks.server = val;
+      document.getElementById("step5Next").disabled = false;
+    });
+  });
+  goStep(5);
+};
+
+document.getElementById("step5Next").onclick = () => {
+  config.format    = picks.format;
+  config.structure = picks.structure;
+  config.scoring   = picks.scoring;
+  config.server    = picks.server;
+  startMatch();
+};
+
+// ═══════════════════════════════════════════════
+// END GAME BUTTON + CONFIRM DIALOG
+// ═══════════════════════════════════════════════
+document.getElementById("endGameBtn").addEventListener("click", () => {
+  document.getElementById("confirmOverlay").classList.add("show");
+});
+document.getElementById("confirmNo").addEventListener("click", () => {
+  document.getElementById("confirmOverlay").classList.remove("show");
+});
+document.getElementById("confirmYes").addEventListener("click", () => {
+  document.getElementById("confirmOverlay").classList.remove("show");
+  // Reset to setup screen
+  document.getElementById("tracker").style.display = "none";
+  document.getElementById("setup").style.display = "flex";
+  // Clear match log and QA log
+  document.getElementById("matchLog").innerHTML = "";
+  document.getElementById("qaLog").innerHTML = "";
+  // Reset picks and go to step 0
+  picks.format = null; picks.structure = null; picks.scoring = null; picks.server = null;
+  document.querySelectorAll(".btn-choice").forEach(b => b.classList.remove("selected"));
+  ["step1Next","step2Next","step3Next","step4Next","step5Next"].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+  goStep(0);
+});
+
+// ═══════════════════════════════════════════════
+// MATCH INIT
+// ═══════════════════════════════════════════════
+function initPlayer(name) {
+  return { name, servePointsWon:0, servePointsPlayed:0, winners:0, missedShots:0, chasesWon:0, chasesPlayed:0 };
+}
+
+function startMatch() {
+  state = {
+    p1: initPlayer(config.name1),
+    p2: initPlayer(config.name2),
+    p1Points: 0, p2Points: 0,
+    deuce: false, advantage: null,
+    p1Games: 0, p2Games: 0,
+    p1Sets: 0, p2Sets: 0,
+    setsHistory: [],
+    server: config.server,
+    chases: [],
+  };
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("tracker").style.display = "flex";
+  const desc = [
+    config.format === "doubles" ? "Doubles" : "Singles",
+    config.structure === "sets" ? "Sets" : "Games only",
+    config.scoring === "deuce" ? "Deuce" : "Game ball",
+  ].join(" · ");
+  document.getElementById("matchdesc").textContent = desc;
+  if (config.structure === "sets") document.getElementById("setsPanel").style.display = "";
+  else document.getElementById("setsPanel").style.display = "none";
+  renderAll();
+  const srvName = config.server === "p1" ? config.name1 : config.name2;
+  addLog("marker", "Match started. " + srvName + " is serving. (" + desc + ")");
+  addQa("answer", "Ask me anything about the match — who is serving, what a chase means, how the scoring works, or anything else.");
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function displayScore() {
+  if (state.deuce) {
+    if (state.advantage === "p1") return "ADV " + config.name1;
+    if (state.advantage === "p2") return "ADV " + config.name2;
+    return config.scoring === "gameball" ? "GAME BALL" : "DEUCE";
+  }
+  // p1Points and p2Points are 0-3 indices
+  const s1 = POINT_LABELS[state.p1Points] !== undefined ? POINT_LABELS[state.p1Points] : "40";
+  const s2 = POINT_LABELS[state.p2Points] !== undefined ? POINT_LABELS[state.p2Points] : "40";
+  return s1 + " – " + s2;
+}
+
+function renderAll() {
+  const { p1, p2, p1Games, p2Games, p1Sets, p2Sets, setsHistory, server, chases } = state;
+
+  // Sets
+  if (config.structure === "sets") {
+    let html = "<thead><tr><th>Player</th>";
+    setsHistory.forEach((_, i) => html += "<th>S" + (i+1) + "</th>");
+    html += "<th>Total</th></tr></thead><tbody>";
+    [[p1, p1Sets], [p2, p2Sets]].forEach(([p, sets]) => {
+      html += "<tr><td>" + esc(p.name) + "</td>";
+      setsHistory.forEach(s => html += "<td>" + (p === p1 ? s.p1 : s.p2) + "</td>");
+      html += "<td class='total'>" + sets + "</td></tr>";
+    });
+    html += "</tbody>";
+    document.getElementById("setsTable").innerHTML = html;
+  }
+
+  // Games
+  document.getElementById("gamesInner").innerHTML =
+    [[config.name1, p1Games], [config.name2, p2Games]].map(([name, g]) =>
+      "<div class='games-cell'><div class='games-name'>" + esc(name) + "</div><div class='games-val'>" + g + "</div></div>"
+    ).join("");
+
+  // Point score
+  const scoreStr = displayScore();
+  const pv = document.getElementById("pointVal");
+  pv.textContent = scoreStr;
+  pv.className = "point-val" + (state.deuce && !state.advantage ? " special" : "");
+  document.getElementById("pointNames").textContent = config.name1 + " — " + config.name2;
+
+  // Ends
+  document.getElementById("endsSrv").textContent = server === "p1" ? config.name1 : config.name2;
+  document.getElementById("endsRcv").textContent = server === "p1" ? config.name2 : config.name1;
+
+  // Chases
+  const ci = document.getElementById("chasesInner");
+  if (!chases.length) {
+    ci.innerHTML = "<div class='chase-none'>None pending</div>";
+  } else {
+    ci.innerHTML = chases.map((c, i) => "<div class='chase-item'>" + (i+1) + ". " + esc(c) + "</div>").join("");
+  }
+
+  // Stats
+  document.getElementById("statsTable").innerHTML =
+    "<thead><tr><th>Stat</th><th>" + esc(config.name1) + "</th><th>" + esc(config.name2) + "</th></tr></thead>" +
+    "<tbody>" +
+    "<tr><td>Serve pts won</td><td>" + p1.servePointsWon + "/" + p1.servePointsPlayed + "</td><td>" + p2.servePointsWon + "/" + p2.servePointsPlayed + "</td></tr>" +
+    "<tr><td>Winners</td><td>" + p1.winners + "</td><td>" + p2.winners + "</td></tr>" +
+    "<tr><td>Errors</td><td>" + p1.missedShots + "</td><td>" + p2.missedShots + "</td></tr>" +
+    "<tr><td>Chases won</td><td>" + p1.chasesWon + "/" + p1.chasesPlayed + "</td><td>" + p2.chasesWon + "/" + p2.chasesPlayed + "</td></tr>" +
+    "</tbody>";
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ═══════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════
+function addLog(type, text) {
+  const log = document.getElementById("matchLog");
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  const tagLabel = type === "input" ? "Input" : type === "error" ? "Error" : "Marker";
+  const tagClass  = type === "input" ? "input" : type === "error" ? "error" : "marker";
+  entry.innerHTML = "<div class='log-tag " + tagClass + "'>" + tagLabel + "</div><div class='log-text " + tagClass + "'>" + esc(text) + "</div>";
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+function addQa(type, text) {
+  const log = document.getElementById("qaLog");
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  const tagLabel = type === "question" ? "You" : type === "error" ? "Error" : "Expert";
+  const tagClass  = type === "question" ? "you" : type === "error" ? "error" : "expert";
+  entry.innerHTML = "<div class='log-tag " + tagClass + "'>" + tagLabel + "</div><div class='log-text " + tagClass + "'>" + esc(text) + "</div>";
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+function addThinking(logId, isQa) {
+  const log = document.getElementById(logId);
+  const el = document.createElement("div");
+  el.className = "log-entry";
+  el.innerHTML = "<div class='log-tag " + (isQa ? "expert" : "marker") + "'></div><div class='log-thinking" + (isQa ? " qa" : "") + "'>Thinking...</div>";
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+function removeThinking(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+
+// ═══════════════════════════════════════════════
+// API CALL
+// ═══════════════════════════════════════════════
+async function callApi(system, userMsg, maxTokens) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: maxTokens || 1000,
+      system: system,
+      messages: [{ role: "user", content: userMsg }],
+    }),
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error.message);
+  return (data.content || []).find(b => b.type === "text")?.text || "";
+}
+
+// ═══════════════════════════════════════════════
+// SCORING PROMPT
+// ═══════════════════════════════════════════════
+function scoringPrompt() {
+  const isGameBall = config.scoring === "gameball";
+  const isSets     = config.structure === "sets";
+  const isDoubles  = config.format === "doubles";
+  const n1 = config.name1, n2 = config.name2;
+
+  return `You are a court tennis (real tennis) scoring assistant.
+
+ABSOLUTE RULE: You must ALWAYS respond with a single valid JSON object and nothing else. No explanations, no apologies, no clarifying questions, no markdown, no preamble. If the input is unclear or ambiguous, make your best reasonable interpretation and still return JSON. The "response" field inside the JSON is where you communicate with the user. Never write text outside the JSON object.
+
+═══ MATCH CONFIGURATION ═══
+- Format: ${isDoubles ? "Doubles. Teams are \"" + n1 + "\" vs \"" + n2 + "\"." : "Singles between " + n1 + " and " + n2 + "."}
+- Structure: ${isSets ? "Sets. First to 6 games wins the set (6-5 is enough, no tiebreak ever). Best of 3 sets. When a set ends, reset games to 0 and record set scores in setsHistory." : "Games only. No sets. Accumulate games. Never populate setsHistory. Do NOT declare a match winner based on games alone."}
+- Scoring rule: ${isGameBall ? "GAME BALL. Points progress: 0 → 15 → 30 → 40 → game won. Each point advances the score by one step. A player wins the game by winning the point AFTER reaching 40. If both players are at 40 simultaneously (40-40), the next point wins the game outright — there is NO deuce and NO advantage in game ball." : "DEUCE. Points progress: 0 → 15 → 30 → 40. If one player reaches 40 while the other has not yet reached 40, the next point wins the game normally. If BOTH players reach 40 at the same time, it is DEUCE. From deuce: winning a point gives ADVANTAGE. If the player with advantage wins the next point, they WIN THE GAME. If the player with advantage LOSES the next point, it goes back to DEUCE. A player can only win from advantage, not from 40 directly once deuce has been reached."}
+
+═══ CRITICAL SCORING RULES ═══
+- p1Points and p2Points are indices 0-3 representing: 0=love, 1=15, 2=30, 3=40.
+- A player at index 3 (40) has NOT yet won the game. They win the game only when they win the NEXT point after being at index 3.
+- NEVER jump a player from 0 or 1 or 2 directly to index 3 (40) after a single point. Each point advances the index by exactly 1.
+- When a game is won: reset BOTH p1Points and p2Points to 0, set deuce to false, set advantage to null.
+- The "response" field text must match the scoreboard exactly. If p1Points=2 and p2Points=3, the score is "30-40". Call it "30-40", never "40-30" unless p1Points=3 and p2Points=2.
+
+═══ WINNERS, ERRORS, AND "WINS/LOSES THE POINT" ═══
+CRITICAL: Only record a winner or error if the user EXPLICITLY uses those words.
+- If the user says "[player] wins the point" or "[player] loses the point" — this is a plain point result. Do NOT increment winners or missedShots for anyone. Just advance the score.
+- Only increment winners (for the scoring player) if the user explicitly says "winner", "hit a winner", "winner shot", or similar.
+- Only increment missedShots (for the player at fault) if the user explicitly says "error", "missed", "into the net", "out", "unforced error", or similar.
+- If both a point result AND a winner/error descriptor are given, record both.
+
+═══ SERVE POINTS ═══
+- servePointsPlayed increments for the server whenever any point is completed (game point or regular point).
+- servePointsWon increments for the server only when the server wins that point.
+
+═══ CHASE RULES ═══
+The court has two sides:
+- SERVICE SIDE (server's side): chases identified by yard numbers.
+- HAZARD SIDE (receiver's side): chases identified by gallery names, but ONLY when user explicitly says "hazard".
+
+SERVICE SIDE CHASES (numeric — default chase type):
+- "Chase 1" through "Chase 6", "Better than 2", "Worse than 3", "Chase 2 and 3", "Better than the last gallery", "Worse than the last gallery" (without the word hazard).
+- Store as: "Chase 2", "Better than 3", etc.
+
+HAZARD SIDE CHASES (word-based — ONLY when user says "hazard"):
+Galleries on hazard side from net to back wall: Winning Gallery (not a chase — immediate point), Door, Second Gallery, Last Gallery.
+- Valid ONLY if user's input contains the word "hazard": "Hazard chase the door", "Hazard chase the second gallery", "Hazard chase the last gallery", "Hazard better than the door", etc.
+- Store as: "Hazard chase the door", etc.
+- A chase input with NO "hazard" keyword is ALWAYS a service side chase.
+
+CHASE MECHANICS:
+- Max 2 chases stored.
+- DO NOT change the server field under any circumstances — always return the same server value that was passed in the current state. Serving only changes when JS detects an ends-change trigger. Never change the server on a game win, set win, or for any other reason.
+- DO NOT remove chases from the array just because a point was scored. Only remove chases if a game ends.
+- When a game ends, clear all chases (set chases to []).
+- When a player hits a winner, it counts as a point won. Do NOT clear chases on a winner unless the game also ends as a result.
+- Always set endsChanged to false. The application handles end-switching logic.
+- If the user declares a new chase (e.g. "Chase 2"), add it to the chases array (max 2). Do not score a point when a chase is declared — it is simply marked.
+- When a chase is being played off (user says someone wins/loses the chase, or wins the point while a chase is pending), score the point normally and update chasesWon/chasesPlayed for the relevant player. The application will clear chases and manage ends.
+
+WINNING OPENINGS (immediate points — never stored as chases):
+- Dedans, Grille, Winning Gallery: ball entering = immediate point for the striker.
+
+═══ RESPONSE FORMAT ═══
+Terse, like a court tennis marker. Use "love" for 0.
+- When scores are equal, say "X all" (e.g. "15 all", "30 all"). NEVER say "in favor" when scores are tied.
+- When scores are unequal, say the score then "in favor of [player]" (e.g. "15-love in favor of ${n1}").
+- Score must reflect p1Points vs p2Points EXACTLY. p1 score always stated first.
+- Always state chase status at end of response.
+- On ends change: say "Players change ends."
+- On game won: "${n1} wins the game. Games: A-B."
+- On set won (sets mode only): "${n1} wins the set. Sets: A-B."
+- Do NOT use British spellings (use "favor" not "favour").
+- Do NOT include stats in the response.
+- Do NOT declare a match winner in games-only mode.
+
+Return ONLY this JSON object:
+{
+  "p1": { "name": string, "servePointsWon": int, "servePointsPlayed": int, "winners": int, "missedShots": int, "chasesWon": int, "chasesPlayed": int },
+  "p2": { "name": string, "servePointsWon": int, "servePointsPlayed": int, "winners": int, "missedShots": int, "chasesWon": int, "chasesPlayed": int },
+  "p1Points": int,
+  "p2Points": int,
+  "deuce": bool,
+  "advantage": null or "p1" or "p2",
+  "p1Games": int,
+  "p2Games": int,
+  "p1Sets": int,
+  "p2Sets": int,
+  "setsHistory": array of objects with p1 and p2 keys,
+  "server": "p1" or "p2",
+  "chases": array of strings,
+  "response": string,
+  "gameWon": null or "p1" or "p2",
+  "setWon": null or "p1" or "p2",
+  "matchWon": null or "p1" or "p2",
+  "endsChanged": bool
+}
+
+IMPORTANT: Always return endsChanged as false. Do not flip the server field. The application handles all end-switching automatically.`;
+}
+
+// ═══════════════════════════════════════════════
+// Q&A PROMPT
+// ═══════════════════════════════════════════════
+function qaPrompt() {
+  const { p1, p2, p1Games, p2Games, p1Sets, p2Sets, server, chases, deuce, advantage, p1Points, p2Points } = state;
+  const srvName = server === "p1" ? config.name1 : config.name2;
+  const rcvName = server === "p1" ? config.name2 : config.name1;
+  const ptStr = deuce
+    ? (advantage ? "Advantage " + (advantage === "p1" ? config.name1 : config.name2) : (config.scoring === "gameball" ? "Game Ball" : "Deuce"))
+    : (POINT_LABELS[p1Points] || "40") + "-" + (POINT_LABELS[p2Points] || "40");
+  const structInfo = config.structure === "sets"
+    ? "Games this set: " + config.name1 + " " + p1Games + " - " + config.name2 + " " + p2Games + " | Sets: " + config.name1 + " " + p1Sets + " - " + config.name2 + " " + p2Sets
+    : "Games: " + config.name1 + " " + p1Games + " - " + config.name2 + " " + p2Games + " (games-only, no sets)";
+
+  return `You are a court tennis commentator and rules expert helping a spectator watching a live match.
+
+Match: ${config.format === "doubles" ? "Doubles" : "Singles"} | ${config.structure === "sets" ? "Sets" : "Games only"} | ${config.scoring === "deuce" ? "Deuce scoring" : "Game ball scoring"}
+
+Current state:
+- Points: ${ptStr} (${config.name1} - ${config.name2})
+- ${structInfo}
+- Serving: ${srvName} | Receiving: ${rcvName}
+- Pending chases: ${chases.length === 0 ? "none" : chases.join(", ")}
+- ${config.name1}: ${p1.winners} winners, ${p1.missedShots} errors, ${p1.servePointsWon}/${p1.servePointsPlayed} serve pts, ${p1.chasesWon}/${p1.chasesPlayed} chases won
+- ${config.name2}: ${p2.winners} winners, ${p2.missedShots} errors, ${p2.servePointsWon}/${p2.servePointsPlayed} serve pts, ${p2.chasesWon}/${p2.chasesPlayed} chases won
+
+Answer conversationally. Explain current state, rules, terminology (chases, dedans, grille, tambour, galleries, penthouse, service end, hazard end, winning gallery, door, second gallery, last gallery, game ball, deuce, etc.), strategy. Reference actual numbers when discussing stats. Do NOT update match state. Do not use British spellings.`;
+}
+
+// ═══════════════════════════════════════════════
+// SCORING INPUT HANDLER
+// ═══════════════════════════════════════════════
+let scoringBusy = false;
+
+async function sendScoring() {
+  const inp = document.getElementById("scoringInput");
+  const text = inp.value.trim();
+  if (!text || scoringBusy) return;
+  inp.value = "";
+  scoringBusy = true;
+  document.getElementById("markBtn").disabled = true;
+
+  addLog("input", text);
+  const thinking = addThinking("matchLog", false);
+
+  try {
+    // Snapshot current point indices so we can detect whether a point was scored after the call
+    state.prevP1Points = state.p1Points;
+    state.prevP2Points = state.p2Points;
+    const userMsg = "Current state:\n" + JSON.stringify(state, null, 2) + "\n\nUser input: " + text;
+    const raw = await callApi(scoringPrompt(), userMsg, 1400);
+
+    let clean = raw.replace(/```json|```/g, "").trim();
+    const jsonStart = clean.indexOf('{');
+    const jsonEnd   = clean.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1 || jsonStart > jsonEnd) {
+      removeThinking(thinking);
+      addLog("marker", clean || "No response from model.");
+      scoringBusy = false;
+      document.getElementById("markBtn").disabled = false;
+      inp.focus();
+      return;
+    }
+    clean = clean.slice(jsonStart, jsonEnd + 1);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(clean);
+    } catch (jsonErr) {
+      removeThinking(thinking);
+      addLog("error", "Could not parse response: " + raw.slice(0, 300));
+      scoringBusy = false;
+      document.getElementById("markBtn").disabled = false;
+      inp.focus();
+      return;
+    }
+
+    state.p1 = parsed.p1;
+    state.p2 = parsed.p2;
+    state.p1Points   = parsed.p1Points;
+    state.p2Points   = parsed.p2Points;
+    state.deuce      = parsed.deuce;
+    state.advantage  = parsed.advantage || null;
+    state.p1Games    = parsed.p1Games;
+    state.p2Games    = parsed.p2Games;
+    state.p1Sets     = parsed.p1Sets;
+    state.p2Sets     = parsed.p2Sets;
+    state.setsHistory = parsed.setsHistory || [];
+    state.server     = parsed.server;
+    state.chases     = parsed.chases || [];
+
+    removeThinking(thinking);
+    addLog("marker", parsed.response);
+
+    // ── JS-side ends-change logic ──────────────────────────────────────────
+    // Ends change (and chases are played off) when:
+    //   (a) There is at least 1 chase stored AND it is GAME POINT, defined as:
+    //       - Game ball scoring: either player is at 40 (p1Points===3 or p2Points===3)
+    //         This includes 40-40 in game ball, since either player can win the next point.
+    //       - Deuce scoring: advantage is set for either player (they are one point from winning).
+    //         Deuce alone (40-40, no advantage) is NOT game point in deuce scoring.
+    //   OR
+    //   (b) Two chases have been stored (regardless of score).
+    //
+    // Do NOT trigger if a game was just won — the game ending clears chases anyway.
+    // Do NOT trigger if no chases are stored.
+    // Serving NEVER changes on a game win — only here.
+    if (!parsed.gameWon && state.chases.length > 0 && !state.playingOffChases) {
+      const isGameBallScoring = config.scoring === "gameball";
+      let atGamePoint = false;
+
+      if (isGameBallScoring) {
+        // Game ball: game point = either player at 40 (including 40-40)
+        atGamePoint = state.p1Points === 3 || state.p2Points === 3;
+      } else {
+        // Deuce: game point = one player is at 40 AND the other has not reached 40 yet
+        // (covers 40-love, 40-15, 40-30), OR advantage is set.
+        // 40-40 (deuce, no advantage) is NOT game point — neither player can win that point.
+        const p1At40 = state.p1Points === 3;
+        const p2At40 = state.p2Points === 3;
+        const oneLeadsAt40 = (p1At40 && state.p2Points < 3) || (p2At40 && state.p1Points < 3);
+        atGamePoint = oneLeadsAt40 || !!state.advantage;
+      }
+
+      const twoChasesLaid = state.chases.length >= 2;
+
+      if (atGamePoint || twoChasesLaid) {
+        // Switch ends: the player currently at the hazard end becomes the new server
+        state.server = state.server === "p1" ? "p2" : "p1";
+        const newSrvName = state.server === "p1" ? config.name1 : config.name2;
+        // Chases are played off one at a time. Show only the first chase to play.
+        const firstChase = state.chases[0];
+        const remaining  = state.chases.length > 1 ? " (" + (state.chases.length - 1) + " more to follow)" : "";
+        addLog("marker", "Players change ends. " + newSrvName + " now serves. Playing off: " + firstChase + remaining + ".");
+        // Mark that we are now in chase play-off mode — track which chase is active
+        state.playingOffChases = true;
+      }
+    }
+
+    // ── Chase play-off resolution ──────────────────────────────────────────
+    // Once ends have been switched (state.playingOffChases === true), each subsequent
+    // point scored removes the first chase in the array. The user inputs point results
+    // one at a time; each one resolves one chase.
+    // We detect "a point was scored" by checking if p1Points or p2Points changed, OR
+    // if a game was won. We stored the pre-call point indices before the API call
+    // in state.prevP1Points / state.prevP2Points.
+    if (state.playingOffChases && state.chases.length > 0) {
+      const pointsChanged = (parsed.p1Points !== state.prevP1Points) ||
+                            (parsed.p2Points !== state.prevP2Points) ||
+                            !!parsed.gameWon;
+      if (pointsChanged) {
+        state.chases.shift();
+        if (state.chases.length > 0) {
+          addLog("marker", "Chase played off. Now playing off: " + state.chases[0] + ".");
+        } else {
+          addLog("marker", "All chases played off.");
+          state.playingOffChases = false;
+        }
+      }
+    }
+    // If a game was won, clear play-off state so the next game starts fresh
+    if (parsed.gameWon) {
+      state.playingOffChases = false;
+      state.chases = [];
+    }
+    // Clean up temp prev-point trackers
+    delete state.prevP1Points;
+    delete state.prevP2Points;
+    // ──────────────────────────────────────────────────────────────────────
+
+    renderAll();
+  } catch (e) {
+    removeThinking(thinking);
+    addLog("error", "Error: " + e.message);
+  }
+
+  scoringBusy = false;
+  document.getElementById("markBtn").disabled = false;
+  inp.focus();
+}
+
+document.getElementById("markBtn").addEventListener("click", sendScoring);
+document.getElementById("scoringInput").addEventListener("keydown", e => { if (e.key === "Enter") sendScoring(); });
+
+// ═══════════════════════════════════════════════
+// Q&A HANDLER
+// ═══════════════════════════════════════════════
+let qaBusy = false;
+
+async function sendQa() {
+  const inp = document.getElementById("qaInput");
+  const text = inp.value.trim();
+  if (!text || qaBusy) return;
+  inp.value = "";
+  qaBusy = true;
+  document.getElementById("askBtn").disabled = true;
+
+  addQa("question", text);
+  const thinking = addThinking("qaLog", true);
+
+  try {
+    const answer = await callApi(qaPrompt(), text, 700);
+    removeThinking(thinking);
+    addQa("answer", answer);
+  } catch (e) {
+    removeThinking(thinking);
+    addQa("error", "Error: " + e.message);
+  }
+
+  qaBusy = false;
+  document.getElementById("askBtn").disabled = false;
+  inp.focus();
+}
+
+document.getElementById("askBtn").addEventListener("click", sendQa);
+document.getElementById("qaInput").addEventListener("keydown", e => { if (e.key === "Enter") sendQa(); });
+</script>
+</body>
+</html>
